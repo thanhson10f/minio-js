@@ -1083,6 +1083,25 @@ export class Client {
     // stream => chunker => uploader
     stream.pipe(chunker).pipe(uploader)
   }
+  
+  putObjectCustom(bucketName, objectName, size, metaData, callback) {
+
+    if (!isNumber(size))
+      size = this.maxObjectSize
+
+    size = this.calculatePartSize(size)
+
+    // s3 requires that all non-end chunks be at least `this.partSize`,
+    // so we chunk the stream until we hit either that size or the end before
+    // we flush it to s3.
+    let chunker = new BlockStream2({size, zeroPadding: false})
+
+    // This is a Writable stream that can be written to in order to upload
+    // to the specified bucket and object automatically.
+    let uploader = new ObjectUploader(this, bucketName, objectName, size, metaData, callback)
+    // stream => chunker => uploader
+    return { chunker, uploader }
+  }
 
   // Copy the object.
   //
@@ -2132,6 +2151,7 @@ Client.prototype.getObject = promisify(Client.prototype.getObject)
 Client.prototype.getPartialObject = promisify(Client.prototype.getPartialObject)
 Client.prototype.fGetObject = promisify(Client.prototype.fGetObject)
 Client.prototype.putObject = promisify(Client.prototype.putObject)
+Client.prototype.putObjectCustom = promisify(Client.prototype.putObjectCustom)
 Client.prototype.fPutObject = promisify(Client.prototype.fPutObject)
 Client.prototype.copyObject = promisify(Client.prototype.copyObject)
 Client.prototype.statObject = promisify(Client.prototype.statObject)
